@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -15,7 +14,7 @@ namespace CopyPic
     /// </summary>
     public static class CopyPic
     {
-        const int BYTES_TO_READ = sizeof(Int64);
+        const int BYTES_TO_READ = sizeof(long);
 
         private static int FileCount { get; set; } = 0;
         private static bool Recursive { get; set; } = false;
@@ -24,7 +23,8 @@ namespace CopyPic
 
 
         /// <summary>
-        /// This is the entry point for the object. It will copy the files and send progress messages
+        /// This is the entry point for the object. It will start the copy and send progress messages.
+        /// It does some validation and starts the copy for each type of file.
         /// </summary>
         /// <param name="source">Location of the files to copy.</param>
         /// <param name="destination">When you want to copy the files.</param>
@@ -60,16 +60,22 @@ namespace CopyPic
             return FileCount;
         }
 
+        /// <summary>
+        /// This method is responsible for copying the files.
+        /// </summary>
+        /// <param name="source">Location of the files to copy.</param>
+        /// <param name="destination">When you want to copy the files.</param>
+        /// <param name="searchPattern">The pattern to use when searching for the files. I.e. *.jpg;*.png;*.bmp;*.mp4;*.nar;*.mov</param>
+        /// <param name="progress">Interface to the progress handler.</param>
         private static void CopyTheFiles(string source, string destination, string searchPattern, IProgress<ProgressStatus> progress)
         {
-            int totalFiles = 0;
             try
             {
                 var images = Recursive ?
                     Directory.EnumerateFiles(source, searchPattern, SearchOption.AllDirectories) :
                     Directory.EnumerateFiles(source, searchPattern);
 
-                totalFiles = Directory.GetFiles(source, searchPattern, SearchOption.AllDirectories).Length;
+                int totalFiles = Directory.GetFiles(source, searchPattern, SearchOption.AllDirectories).Length;
                 string filePlurality = totalFiles > 1 ? "files" : "file";
                 UpdateProgress(StatusCodeEnum.Initialize, $"Copying {totalFiles} {searchPattern} {filePlurality}.", totalFiles, progress);
 
@@ -154,6 +160,11 @@ namespace CopyPic
 
         }
 
+        /// <summary>
+        /// This method obtains the date for the image so that it can be placed in the right folder
+        /// </summary>
+        /// <param name="image">full path and name of the image/video</param>
+        /// <returns>A DateTime value to be used to create the folder</returns>
         private static DateTime GetFileDate(string image)
         {
             const string wpPattern = "^[W][P]\\w([2][0]|[1][9])[0-9]{6}\\w[0-9]{2}\\w[0-9]{2}\\w[0-9]{2}";
@@ -193,6 +204,11 @@ namespace CopyPic
             return fileDate;
         }
 
+        /// <summary>
+        /// This method get the date the picture was taken from the image metadata
+        /// </summary>
+        /// <param name="image">full path and name of the image/video</param>
+        /// <returns>A DateTime value to be used to create the folder</returns>
         private static DateTime GetDateTaken(string image)
         {
             DateTime result = File.GetLastWriteTime(image);
@@ -245,6 +261,12 @@ namespace CopyPic
             return Directory.Exists(path);
         }
 
+        /// <summary>
+        /// Compare two images
+        /// </summary>
+        /// <param name="sourceFile">full image path and file name</param>
+        /// <param name="destinationFile">full image path and file name</param>
+        /// <returns>True indicates that the files are equal.</returns>
         private static bool FilesAreEqual(string sourceFile, string destinationFile)
         {
             FileInfo first = new FileInfo(sourceFile);
@@ -273,6 +295,13 @@ namespace CopyPic
             return true;
         }
 
+        /// <summary>
+        /// Updates the UI
+        /// </summary>
+        /// <param name="statusCode">Code to tell the ui what to do.</param>
+        /// <param name="status">Status to display</param>
+        /// <param name="filetotal">Number of files copied</param>
+        /// <param name="progress">Interface to progress handler</param>
         private static void UpdateProgress(StatusCodeEnum statusCode, string status, int filetotal, IProgress<ProgressStatus> progress)
         {
             if (progress != null)
